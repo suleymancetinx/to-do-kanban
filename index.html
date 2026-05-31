@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TaskFlow – Görev Yöneticisi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
+<style>
+/* ── TOKENS ── */
+:root{
+  --bg:#f4f1ec; --surface:#faf8f4; --surface-alt:#ffffff;
+  --border:#e5e0d8; --border-strong:#c8c1b6;
+  --text-primary:#1a1714; --text-secondary:#6b6460; --text-muted:#a09890;
+  --accent:#2d5a3d; --accent-light:#e8f2eb; --accent-dim:#b8d9c2;
+  --danger:#c0392b; --danger-light:#fdf0ef;
+  --font-display:'DM Serif Display',Georgia,serif;
+  --font-body:'DM Sans',system-ui,sans-serif;
+  --radius-sm:8px; --radius-md:14px; --radius-lg:20px;
+  --shadow-sm:0 1px 4px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.04);
+  --shadow-md:0 6px 20px rgba(0,0,0,.11),0 1px 4px rgba(0,0,0,.06);
+  --shadow-drag:0 16px 40px rgba(0,0,0,.18),0 4px 12px rgba(0,0,0,.12);
+  --nav-h:62px; --tr:0.26s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;scroll-behavior:smooth;}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text-primary);min-height:100dvh;overflow-x:hidden;}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+input,textarea,select{font-family:inherit;}
+
+/* ── TOPNAV ── */
+.topnav{position:fixed;top:0;left:0;right:0;height:var(--nav-h);background:rgba(244,241,236,.92);backdrop-filter:blur(18px);border-bottom:1px solid var(--border);z-index:80;display:flex;align-items:center;justify-content:space-between;padding:0 18px;}
+.logo{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;}
+.logo-icon{width:34px;height:34px;position:relative;flex-shrink:0;}
+.logo-icon::before{content:'';position:absolute;width:13px;height:13px;border-radius:4px;background:var(--accent);top:2px;left:2px;box-shadow:15px 0 0 0 hsl(208,50%,45%),0 15px 0 0 hsl(38,70%,42%),15px 15px 0 0 hsl(270,45%,48%);}
+.logo-icon::after{content:'';position:absolute;width:7px;height:4px;border-left:2.5px solid #fff;border-bottom:2.5px solid #fff;background:none;transform:rotate(-45deg);top:5px;left:4px;}
+.logo-text{font-family:var(--font-display);font-size:1.3rem;letter-spacing:-.01em;line-height:1;}
+.logo-text span{color:var(--accent);}
+.hamburger-btn{width:40px;height:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-radius:var(--radius-sm);transition:background var(--tr);}
+.hamburger-btn:hover{background:var(--border);}
+.bar{width:22px;height:2px;background:var(--text-primary);border-radius:2px;transition:all var(--tr);transform-origin:center;}
+.drawer-open .bar:nth-child(1){transform:rotate(45deg) translate(5px,5px);}
+.drawer-open .bar:nth-child(2){opacity:0;transform:scaleX(0);}
+.drawer-open .bar:nth-child(3){transform:rotate(-45deg) translate(5px,-5px);}
+
+/* ── OVERLAY ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);backdrop-filter:blur(3px);z-index:90;opacity:0;pointer-events:none;transition:opacity var(--tr);}
+.overlay.active{opacity:1;pointer-events:all;}
+
+/* ── DRAWER ── */
+.nav-drawer{position:fixed;top:0;right:0;width:280px;height:100dvh;background:var(--surface-alt);border-left:1px solid var(--border);z-index:100;transform:translateX(100%);transition:transform var(--tr);display:flex;flex-direction:column;padding:22px;overflow-y:auto;}
+.nav-drawer.active{transform:translateX(0);}
+.drawer-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.drawer-title{font-family:var(--font-display);font-size:1.4rem;}
+.drawer-close{width:34px;height:34px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:var(--text-secondary);cursor:pointer;transition:background var(--tr),color var(--tr);}
+.drawer-close:hover{background:var(--border);color:var(--text-primary);}
+.drawer-nav{display:flex;flex-direction:column;gap:3px;flex:1;}
+.nav-item{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:var(--radius-md);font-size:.91rem;font-weight:500;color:var(--text-secondary);cursor:pointer;transition:background var(--tr),color var(--tr);border:none;background:none;text-align:left;width:100%;font-family:var(--font-body);}
+.nav-item:hover{background:var(--bg);color:var(--text-primary);}
+.nav-item.active{background:var(--accent-light);color:var(--accent);font-weight:600;}
+.nav-icon{font-size:1rem;flex-shrink:0;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:.66rem;font-weight:700;padding:2px 7px;border-radius:20px;min-width:20px;text-align:center;}
+.nav-divider{height:1px;background:var(--border);margin:6px 0;}
+.drawer-footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--border);font-size:.75rem;color:var(--text-muted);text-align:center;line-height:1.8;}
+.drawer-footer .heart{color:var(--danger);}
+
+/* ── MAIN / PAGES ── */
+main{padding-top:calc(var(--nav-h) + 22px);padding-bottom:80px;padding-left:16px;padding-right:16px;min-height:100dvh;}
+.page{display:none;animation:fadeUp .28s ease both;}
+.page.active{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.page-header{margin-bottom:22px;}
+.page-header h1{font-family:var(--font-display);font-size:clamp(1.6rem,5vw,2.5rem);line-height:1.15;letter-spacing:-.02em;margin-bottom:5px;}
+.page-header p{font-size:.88rem;color:var(--text-secondary);}
+
+/* ── KANBAN BOARD ── */
+.kanban-board{display:flex;flex-direction:column;gap:16px;}
+@media(min-width:640px){.kanban-board{display:grid;grid-template-columns:repeat(2,1fr);align-items:start;}.add-col-row{grid-column:span 2;}}
+@media(min-width:1024px){.kanban-board{grid-template-columns:repeat(4,1fr);gap:18px;}.add-col-row{grid-column:span 4;}}
+
+/* ── COLUMN ── */
+.col{border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;gap:10px;}
+.col.drag-over{outline:2px dashed var(--accent);outline-offset:2px;}
+.col-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.col-header-left{display:flex;align-items:center;gap:10px;}
+.col-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.col-title{font-family:var(--font-display);font-size:1rem;letter-spacing:-.01em;}
+.col-count{font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(0,0,0,.08);color:var(--text-secondary);}
+.col-add-btn{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.15rem;font-weight:300;color:var(--text-muted);cursor:pointer;background:rgba(255,255,255,.55);transition:background var(--tr),color var(--tr);line-height:1;}
+.col-add-btn:hover{background:rgba(255,255,255,.9);color:var(--text-primary);}
+.drop-placeholder{height:60px;border-radius:var(--radius-md);border:2px dashed var(--accent-dim);background:var(--accent-light);}
+
+/* ── CARD ── */
+.card{border-radius:var(--radius-md);padding:12px 14px;display:flex;align-items:flex-start;gap:10px;box-shadow:var(--shadow-sm);transition:box-shadow var(--tr),transform var(--tr),opacity var(--tr);position:relative;cursor:grab;user-select:none;}
+.card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);}
+.card.dragging{opacity:.28;cursor:grabbing;transform:scale(.98);}
+.card.ghost{opacity:1!important;transform:rotate(2deg) scale(1.03);box-shadow:var(--shadow-drag);cursor:grabbing;pointer-events:none;position:fixed;z-index:1000;}
+.cb-wrap{display:flex;align-items:center;padding-top:2px;flex-shrink:0;}
+.cb-circle{width:20px;height:20px;border-radius:50%;border:2px solid var(--border-strong);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color var(--tr),background var(--tr);position:relative;flex-shrink:0;}
+.cb-circle::after{content:'';width:5px;height:9px;border-right:2.5px solid #fff;border-bottom:2.5px solid #fff;transform:rotate(45deg) scale(0);transition:transform .18s ease;position:absolute;top:1px;}
+.card.done .cb-circle::after{transform:rotate(45deg) scale(1);}
+.card.done .card-title{text-decoration:line-through;color:var(--text-muted);}
+.card-body{flex:1;min-width:0;}
+.card-title{font-size:.88rem;font-weight:500;line-height:1.45;color:var(--text-primary);display:block;}
+.card-meta{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
+.tag{font-size:.68rem;font-weight:500;padding:2px 7px;border-radius:20px;display:inline-flex;align-items:center;gap:3px;}
+.tag-date{background:rgba(0,0,0,.06);color:var(--text-secondary);}
+.tag-urgent{background:#fee2e2;color:#b91c1c;}
+.tag-label{background:rgba(0,0,0,.06);color:var(--text-secondary);}
+.card-actions{display:flex;flex-direction:column;gap:2px;opacity:0;transition:opacity var(--tr);flex-shrink:0;}
+.card:hover .card-actions{opacity:1;}
+.act-btn{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--text-muted);cursor:pointer;transition:background var(--tr),color var(--tr);}
+.act-btn:hover{background:rgba(0,0,0,.08);color:var(--text-primary);}
+.act-btn.del:hover{background:var(--danger-light);color:var(--danger);}
+.add-card-btn{width:100%;padding:10px 14px;border-radius:var(--radius-md);border:1.5px dashed var(--border-strong);background:rgba(255,255,255,.45);color:var(--text-muted);font-size:.82rem;font-weight:500;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;transition:border-color var(--tr),background var(--tr),color var(--tr);font-family:var(--font-body);}
+.add-card-btn:hover{border-color:var(--accent);background:rgba(255,255,255,.75);color:var(--accent);}
+
+/* ── ADD COL BTN ── */
+.add-col-row{width:100%;}
+.add-col-btn{width:100%;padding:16px;border-radius:var(--radius-lg);border:2px dashed var(--border-strong);background:transparent;color:var(--text-muted);font-size:.9rem;font-weight:500;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;transition:all var(--tr);font-family:var(--font-body);}
+.add-col-btn:hover{border-color:var(--accent);background:var(--accent-light);color:var(--accent);}
+
+/* ── MODALS ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.42);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.active{display:flex;}
+.modal{background:var(--surface-alt);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:420px;box-shadow:0 24px 60px rgba(0,0,0,.22);animation:modalIn .22s ease both;}
+@keyframes modalIn{from{opacity:0;transform:scale(.94) translateY(10px);}to{opacity:1;transform:none;}}
+.modal-title{font-family:var(--font-display);font-size:1.3rem;margin-bottom:20px;}
+.form-field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.form-field label{font-size:.82rem;font-weight:600;color:var(--text-secondary);}
+.form-field input,.form-field select{padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);font-size:.9rem;color:var(--text-primary);outline:none;transition:border-color var(--tr);}
+.form-field input:focus,.form-field select:focus{border-color:var(--accent);}
+.form-field select{cursor:pointer;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+.btn{padding:10px 20px;border-radius:var(--radius-md);font-size:.88rem;font-weight:600;cursor:pointer;transition:all var(--tr);font-family:var(--font-body);}
+.btn-ghost{background:transparent;border:1.5px solid var(--border);color:var(--text-secondary);}
+.btn-ghost:hover{background:var(--border);}
+.btn-accent{background:var(--accent);color:#fff;border:none;}
+.btn-accent:hover{opacity:.88;transform:translateY(-1px);}
+.btn-danger{background:var(--danger);color:#fff;border:none;}
+.btn-danger:hover{opacity:.88;}
+.confirm-body{font-size:.9rem;color:var(--text-secondary);line-height:1.65;margin-bottom:8px;}
+.confirm-warn{border-radius:var(--radius-sm);padding:10px 14px;font-size:.83rem;margin-top:10px;line-height:1.55;}
+.confirm-warn.red{background:var(--danger-light);color:var(--danger);}
+.confirm-warn.green{background:var(--accent-light);color:var(--accent);}
+
+/* ── COMPLETED PAGE ── */
+.completed-list{display:flex;flex-direction:column;gap:10px;max-width:660px;}
+.completed-card{background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 16px;display:flex;align-items:center;gap:12px;animation:fadeUp .2s ease both;}
+.completed-check{width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;font-size:.75rem;}
+.completed-body{flex:1;min-width:0;}
+.completed-title{font-size:.9rem;font-weight:500;color:var(--text-secondary);text-decoration:line-through;}
+.completed-meta{font-size:.73rem;color:var(--text-muted);margin-top:3px;}
+.completed-del{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);cursor:pointer;transition:background var(--tr),color var(--tr);}
+.completed-del:hover{background:var(--danger-light);color:var(--danger);}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-muted);font-size:.9rem;line-height:1.8;}
+.empty-state .icon{font-size:2.5rem;display:block;margin-bottom:12px;}
+
+/* ════════════════════════════════════════════
+   CATEGORIES PAGE
+════════════════════════════════════════════ */
+.cat-page-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:6px;flex-wrap:wrap;}
+.cat-page-top h1{font-family:var(--font-display);font-size:clamp(1.6rem,5vw,2.5rem);line-height:1.15;letter-spacing:-.02em;margin-bottom:4px;}
+.cat-page-top p{font-size:.86rem;color:var(--text-secondary);}
+.btn-sm{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:var(--radius-md);font-size:.84rem;font-weight:600;cursor:pointer;transition:all var(--tr);font-family:var(--font-body);border:none;}
+.btn-sm-accent{background:var(--accent);color:#fff;}
+.btn-sm-accent:hover{opacity:.88;transform:translateY(-1px);}
+
+/* hint bar */
+.cat-hint{display:flex;align-items:center;gap:8px;background:var(--accent-light);border:1px solid var(--accent-dim);border-radius:var(--radius-md);padding:10px 14px;font-size:.8rem;color:var(--accent);margin-bottom:20px;line-height:1.5;}
+.cat-hint-icon{font-size:1.1rem;flex-shrink:0;}
+
+/* list */
+.cat-list{display:flex;flex-direction:column;gap:8px;max-width:640px;}
+
+/* row */
+.cat-row{
+  background:var(--surface-alt);border:1.5px solid var(--border);
+  border-radius:var(--radius-md);display:flex;align-items:center;gap:10px;
+  padding:13px 14px;transition:box-shadow var(--tr),transform var(--tr),opacity var(--tr),border-color var(--tr);
+  user-select:none;position:relative;
+}
+.cat-row:hover{box-shadow:var(--shadow-sm);}
+.cat-row.is-dragging{opacity:.22;transform:scale(.97);}
+.cat-row.drag-target{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light);}
+
+/* drag handle */
+.cat-handle{
+  display:flex;flex-direction:column;gap:3px;padding:5px 4px;
+  border-radius:6px;cursor:grab;flex-shrink:0;
+  transition:background var(--tr);
+}
+.cat-handle:hover{background:var(--bg);}
+.cat-handle:active{cursor:grabbing;}
+.cat-handle span{display:block;width:14px;height:2px;background:var(--border-strong);border-radius:2px;transition:background var(--tr);}
+.cat-handle:hover span{background:var(--text-secondary);}
+
+/* color dot */
+.cat-dot{
+  width:18px;height:18px;border-radius:50%;flex-shrink:0;cursor:pointer;
+  border:2.5px solid transparent;transition:transform .15s,border-color .15s,box-shadow .15s;
+}
+.cat-dot:hover{transform:scale(1.25);border-color:rgba(0,0,0,.2);box-shadow:0 2px 6px rgba(0,0,0,.15);}
+
+/* name area */
+.cat-name-wrap{flex:1;min-width:0;}
+.cat-name{font-size:.93rem;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:text;}
+.cat-sub{font-size:.73rem;color:var(--text-muted);margin-top:2px;}
+.cat-name-input{
+  font-size:.93rem;font-weight:600;color:var(--text-primary);
+  border:none;outline:none;background:transparent;
+  border-bottom:2px solid var(--accent);width:100%;
+  padding:1px 0;font-family:var(--font-body);
+}
+
+/* order buttons */
+.cat-order-btns{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+.cat-order-btn{
+  width:24px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:.72rem;color:var(--text-muted);cursor:pointer;line-height:1;
+  transition:background var(--tr),color var(--tr);
+}
+.cat-order-btn:hover:not(:disabled){background:var(--bg);color:var(--text-primary);}
+.cat-order-btn:disabled{opacity:.25;cursor:default;}
+
+/* row actions */
+.cat-row-actions{display:flex;align-items:center;gap:3px;flex-shrink:0;}
+.cat-act{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.82rem;color:var(--text-muted);cursor:pointer;transition:background var(--tr),color var(--tr);}
+.cat-act:hover{background:var(--bg);color:var(--text-primary);}
+.cat-act.danger:hover{background:var(--danger-light);color:var(--danger);}
+
+/* color picker popup */
+.color-picker-popup{
+  position:absolute;z-index:300;left:0;top:calc(100% + 6px);
+  background:var(--surface-alt);border:1px solid var(--border);
+  border-radius:var(--radius-md);padding:12px;
+  display:flex;flex-wrap:wrap;gap:8px;width:176px;
+  box-shadow:var(--shadow-md);
+}
+.cp-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2.5px solid transparent;transition:transform .15s,border-color .15s,box-shadow .15s;}
+.cp-swatch:hover{transform:scale(1.2);box-shadow:0 2px 8px rgba(0,0,0,.18);}
+.cp-swatch.active{border-color:var(--text-primary);transform:scale(1.12);}
+
+/* ── STATIC PAGES ── */
+.static-page{max-width:600px;margin:0 auto;}
+.static-page h2{font-family:var(--font-display);font-size:clamp(1.5rem,4vw,2.2rem);margin-bottom:16px;}
+.static-page p,.static-page li{font-size:.93rem;line-height:1.75;color:var(--text-secondary);margin-bottom:10px;}
+.static-page ul{padding-left:22px;}
+.card-static{background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px 20px;margin-bottom:14px;}
+.changelog-tag{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 10px;border-radius:20px;margin-bottom:6px;background:var(--accent-light);color:var(--accent);letter-spacing:.05em;text-transform:uppercase;}
+.changelog-date{font-size:.76rem;color:var(--text-muted);margin-bottom:8px;}
+.contact-field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+.contact-field label{font-size:.83rem;font-weight:600;color:var(--text-secondary);}
+.contact-field input,.contact-field textarea{padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);font-size:.9rem;color:var(--text-primary);outline:none;transition:border-color var(--tr);font-family:var(--font-body);resize:vertical;}
+.contact-field input:focus,.contact-field textarea:focus{border-color:var(--accent);}
+.donate-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0;}
+.donate-opt{padding:14px;border-radius:var(--radius-md);border:2px solid var(--border);background:var(--surface-alt);font-size:.9rem;font-weight:600;cursor:pointer;text-align:center;transition:all var(--tr);font-family:var(--font-body);}
+.donate-opt:hover,.donate-opt.picked{border-color:var(--accent);background:var(--accent-light);color:var(--accent);}
+.btn-full{width:100%;padding:13px;border-radius:var(--radius-md);background:var(--accent);color:#fff;font-size:.9rem;font-weight:600;cursor:pointer;border:none;font-family:var(--font-body);transition:opacity var(--tr),transform var(--tr);}
+.btn-full:hover{opacity:.88;transform:translateY(-1px);}
+
+/* ── FAB / FOOTER ── */
+.fab{display:none;position:fixed;bottom:32px;right:32px;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;font-size:1.6rem;line-height:1;align-items:center;justify-content:center;box-shadow:0 6px 24px rgba(45,90,61,.4);cursor:pointer;transition:transform var(--tr),box-shadow var(--tr);z-index:50;border:none;}
+.fab:hover{transform:scale(1.08) rotate(90deg);box-shadow:0 10px 32px rgba(45,90,61,.5);}
+footer{background:var(--surface);border-top:1px solid var(--border);padding:16px;text-align:center;font-size:.76rem;color:var(--text-muted);line-height:1.7;}
+footer .heart{color:var(--danger);}
+
+@media(min-width:768px){main{padding-left:28px;padding-right:28px;}}
+@media(min-width:1024px){.fab{display:flex;}.card-actions{opacity:0;}.card:hover .card-actions{opacity:1;}}
+</style>
+</head>
+<body>
+
+<!-- TOPNAV -->
+<nav class="topnav">
+  <div class="logo" id="logoBtn">
+    <span class="logo-icon" aria-hidden="true"></span>
+    <span class="logo-text">Task<span>Flow</span></span>
+  </div>
+  <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menü">
+    <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+  </button>
+</nav>
+
+<div class="overlay" id="overlay"></div>
+
+<!-- DRAWER -->
+<aside class="nav-drawer" id="navDrawer">
+  <div class="drawer-header">
+    <span class="drawer-title">Menü</span>
+    <button class="drawer-close" id="drawerClose">✕</button>
+  </div>
+  <nav class="drawer-nav">
+    <button class="nav-item active" data-page="tasks"><span class="nav-icon">📋</span>Görevler</button>
+    <button class="nav-item" data-page="completed"><span class="nav-icon">✅</span>Tamamlananlar<span class="nav-badge" id="completedBadge">0</span></button>
+    <div class="nav-divider"></div>
+    <button class="nav-item" data-page="categories"><span class="nav-icon">🗂️</span>Kategoriler<span class="nav-badge" id="catBadge" style="background:var(--text-muted)">0</span></button>
+    <div class="nav-divider"></div>
+    <button class="nav-item" data-page="about"><span class="nav-icon">👤</span>Hakkımda</button>
+    <button class="nav-item" data-page="contact"><span class="nav-icon">✉️</span>İletişim</button>
+    <button class="nav-item" data-page="donate"><span class="nav-icon">💝</span>Bağış</button>
+    <button class="nav-item" data-page="changelog"><span class="nav-icon">📝</span>Changelog</button>
+  </nav>
+  <div class="drawer-footer">Süleyman Çetin © 2026<br/><span class="heart">♥️</span> ile tasarlandı</div>
+</aside>
+
+<!-- MAIN -->
+<main id="main">
+
+  <!-- PAGE: TASKS -->
+  <div class="page active" id="page-tasks">
+    <header class="page-header">
+      <h1>Bugünkü Görevler</h1>
+      <p id="taskSummary">Yükleniyor…</p>
+    </header>
+    <div class="kanban-board" id="board">
+      <div class="add-col-row">
+        <button class="add-col-btn" id="addColBtn"><span style="font-size:1.3rem">＋</span>Kategori Ekle</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: COMPLETED -->
+  <div class="page" id="page-completed">
+    <header class="page-header">
+      <h1>Tamamlananlar</h1>
+      <p id="completedSummary">Silinen ve işaretlenen görevler burada.</p>
+    </header>
+    <div class="completed-list" id="completedList"></div>
+  </div>
+
+  <!-- PAGE: CATEGORIES -->
+  <div class="page" id="page-categories">
+    <div class="cat-page-top">
+      <div>
+        <h1>Kategoriler</h1>
+        <p>Kolonlarını burada yönet, sırala ve düzenle.</p>
+      </div>
+      <button class="btn-sm btn-sm-accent" id="catAddBtn">＋ Yeni Kategori</button>
+    </div>
+    <div class="cat-hint">
+      <span class="cat-hint-icon">💡</span>
+      <span>Sıralamak için sürükle ya da <strong>↑ ↓</strong> oklarını kullan. Adı değiştirmek için <strong>çift tıkla</strong> veya ✏️ ikonuna bas. Renk noktasına tıklayarak rengi değiştirebilirsin.</span>
+    </div>
+    <div class="cat-list" id="catList"></div>
+  </div>
+
+  <!-- PAGE: ABOUT -->
+  <div class="page" id="page-about">
+    <div class="static-page">
+      <h2>Hakkımda</h2>
+      <p>Merhaba! Ben <strong>Süleyman Çetin</strong>, arayüz tasarımı ve yazılım geliştirme tutkusuyla çalışan bir frontend geliştiriciyim.</p>
+      <p>TaskFlow'u günlük iş akışımı düzene sokmak için geliştirdim. Sade, hızlı ve odak odaklı bir deneyim sunmak en büyük hedefimdi.</p>
+      <div class="card-static">
+        <p><strong>🛠 Teknolojiler:</strong> HTML5, CSS3, JavaScript, React</p>
+        <p><strong>📍 Konum:</strong> Trabzon, Türkiye</p>
+        <p><strong>💼 Alan:</strong> Frontend Geliştirme, UI/UX Tasarım</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: CONTACT -->
+  <div class="page" id="page-contact">
+    <div class="static-page">
+      <h2>İletişim</h2>
+      <p>Bir sorunuz mu var? Aşağıdaki formu doldurun.</p>
+      <div class="contact-field"><label>Ad Soyad</label><input type="text" placeholder="Adınızı girin"/></div>
+      <div class="contact-field"><label>E-posta</label><input type="email" placeholder="ornek@eposta.com"/></div>
+      <div class="contact-field"><label>Mesaj</label><textarea rows="5" placeholder="Mesajınızı yazın…"></textarea></div>
+      <button class="btn-full" style="max-width:180px">Gönder ✉️</button>
+    </div>
+  </div>
+
+  <!-- PAGE: DONATE -->
+  <div class="page" id="page-donate">
+    <div class="static-page">
+      <h2>Bağış Yap 💝</h2>
+      <p>TaskFlow'u sevdiyseniz geliştirmeme destek olabilirsiniz.</p>
+      <div class="donate-grid">
+        <button class="donate-opt" onclick="this.classList.toggle('picked')">☕ 25₺</button>
+        <button class="donate-opt" onclick="this.classList.toggle('picked')">🍕 50₺</button>
+        <button class="donate-opt" onclick="this.classList.toggle('picked')">🚀 100₺</button>
+      </div>
+      <button class="btn-full">Destek Ol 🙏</button>
+    </div>
+  </div>
+
+  <!-- PAGE: CHANGELOG -->
+  <div class="page" id="page-changelog">
+    <div class="static-page">
+      <h2>Changelog</h2>
+      <div class="card-static">
+        <div class="changelog-tag">v1.4.0</div>
+        <div class="changelog-date">Mayıs 2026</div>
+        <ul>
+          <li>Kategoriler yönetim sayfası hamburger menüye eklendi</li>
+          <li>Sürükle-bırak ile kategori sıralama</li>
+          <li>↑ ↓ ok butonlarıyla kategori sıralama</li>
+          <li>Çift tıkla veya ✏️ ile kategori yeniden adlandırma</li>
+          <li>Renk noktasına tıklayarak 8 renk arasından seçim</li>
+          <li>Kategori silme – görevler Tamamlananlar'a taşınır</li>
+        </ul>
+      </div>
+      <div class="card-static">
+        <div class="changelog-tag">v1.3.0</div>
+        <div class="changelog-date">Nisan 2026</div>
+        <ul>
+          <li>Tam çalışır JS entegrasyonu</li>
+          <li>Sürükle-bırak kart taşıma</li>
+          <li>Görev ekleme / düzenleme / silme</li>
+          <li>Tamamlananlar arşivi</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>Süleyman Çetin © 2026 &nbsp;|&nbsp; <span class="heart">♥️</span> ile tasarlandı</footer>
+<button class="fab" id="fabBtn" aria-label="Yeni görev ekle">+</button>
+
+<!-- MODAL: TASK -->
+<div class="modal-overlay" id="taskModal">
+  <div class="modal">
+    <div class="modal-title" id="taskModalTitle">Yeni Görev</div>
+    <div class="form-field"><label>Görev Adı</label><input type="text" id="taskNameInput" placeholder="Görev başlığı…" maxlength="120"/></div>
+    <div class="form-field"><label>Kategori</label><select id="taskColSelect"></select></div>
+    <div class="form-field"><label>Etiket (opsiyonel)</label><input type="text" id="taskTagInput" placeholder="ör. Geliştirme, Acil…" maxlength="30"/></div>
+    <div class="form-field"><label>Tarih (opsiyonel)</label><input type="date" id="taskDateInput"/></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="taskModalCancel">İptal</button>
+      <button class="btn btn-accent" id="taskModalSave">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD CATEGORY -->
+<div class="modal-overlay" id="colModal">
+  <div class="modal">
+    <div class="modal-title">Yeni Kategori</div>
+    <div class="form-field"><label>Kategori Adı</label><input type="text" id="colNameInput" placeholder="ör. Beklemede, Planlama…" maxlength="40"/></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="colModalCancel">İptal</button>
+      <button class="btn btn-accent" id="colModalSave">Oluştur</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DELETE CATEGORY CONFIRM -->
+<div class="modal-overlay" id="deleteCatModal">
+  <div class="modal">
+    <div class="modal-title">Kategoriyi Sil</div>
+    <div class="confirm-body" id="deleteCatBody"></div>
+    <div class="confirm-warn" id="deleteCatWarn"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="deleteCatCancel">İptal</button>
+      <button class="btn btn-danger" id="deleteCatConfirm">Evet, Sil</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════
+   PALETTES
+══════════════════════════════════════════════ */
+const PALETTES = [
+  {bg:'hsl(208,60%,94%)', accent:'hsl(208,50%,45%)', card:'hsl(208,55%,97.5%)', border:'hsl(208,40%,86%)'},
+  {bg:'hsl(38,60%,93%)',  accent:'hsl(38,70%,42%)',  card:'hsl(38,55%,97.5%)',  border:'hsl(38,45%,85%)'},
+  {bg:'hsl(145,45%,93%)', accent:'hsl(145,50%,36%)', card:'hsl(145,40%,97.5%)', border:'hsl(145,35%,85%)'},
+  {bg:'hsl(270,40%,94%)', accent:'hsl(270,45%,48%)', card:'hsl(270,38%,97.5%)', border:'hsl(270,32%,87%)'},
+  {bg:'hsl(330,40%,94%)', accent:'hsl(330,50%,48%)', card:'hsl(330,38%,97.5%)', border:'hsl(330,32%,87%)'},
+  {bg:'hsl(175,45%,92%)', accent:'hsl(175,55%,35%)', card:'hsl(175,40%,97%)',   border:'hsl(175,38%,84%)'},
+  {bg:'hsl(15,55%,93%)',  accent:'hsl(15,65%,45%)',  card:'hsl(15,50%,97.5%)',  border:'hsl(15,45%,86%)'},
+  {bg:'hsl(60,50%,92%)',  accent:'hsl(60,60%,36%)',  card:'hsl(60,45%,97%)',    border:'hsl(60,42%,84%)'},
+];
+
+/* ══════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════ */
+let colIdSeq=0, taskIdSeq=0;
+let completedItems=[];
+let editingTaskId=null, pendingColId=null, pendingDeleteCatId=null;
+
+const columns = [
+  {id:++colIdSeq, pal:0, title:'Yapılacaklar', tasks:[
+    {id:++taskIdSeq,title:'UI Tasarım İyileştirmeleri',tag:'Acil',date:'Bugün',urgent:true,done:false},
+    {id:++taskIdSeq,title:'API Entegrasyon Testleri',tag:'Geliştirme',date:'',urgent:false,done:false},
+    {id:++taskIdSeq,title:'Veritabanı Şemasını Güncelle',tag:'Backend',date:'Yarın',urgent:false,done:false},
+  ]},
+  {id:++colIdSeq, pal:1, title:'Geliştirilenler', tasks:[
+    {id:++taskIdSeq,title:'Responsive Grid Layout',tag:'Kritik',date:'',urgent:true,done:false},
+    {id:++taskIdSeq,title:'Kullanıcı Kimlik Doğrulama Modülü',tag:'Auth',date:'Perşembe',urgent:false,done:false},
+  ]},
+  {id:++colIdSeq, pal:3, title:'İncelemede', tasks:[
+    {id:++taskIdSeq,title:'Erişilebilirlik Denetimi (a11y)',tag:'QA',date:'',urgent:false,done:false},
+  ]},
+  {id:++colIdSeq, pal:2, title:'Tamamlandı', tasks:[
+    {id:++taskIdSeq,title:'Figma Mockup Onayı',tag:'',date:'Dün',urgent:false,done:false},
+    {id:++taskIdSeq,title:'Proje Gereksinimlerini Belgele',tag:'',date:'Pazartesi',urgent:false,done:false},
+  ]},
+];
+
+/* ══════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════ */
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const findCol=id=>columns.find(c=>c.id===id)||null;
+const findTask=tid=>{for(const c of columns){const t=c.tasks.find(x=>x.id===tid);if(t)return{col:c,task:t};}return null;};
+const pal=p=>PALETTES[((p%PALETTES.length)+PALETTES.length)%PALETTES.length];
+
+function formatDate(iso){
+  if(!iso)return'';
+  const d=new Date(iso),t=new Date();t.setHours(0,0,0,0);
+  const diff=Math.round((d-t)/86400000);
+  if(diff===0)return'Bugün';if(diff===1)return'Yarın';if(diff===-1)return'Dün';
+  return d.toLocaleDateString('tr-TR',{day:'numeric',month:'short'});
+}
+
+/* inject dynamic palette CSS (data-pal attribute based) */
+(()=>{
+  let css='';
+  PALETTES.forEach((p,i)=>{
+    css+=`.col[data-pal="${i}"]{background:${p.bg};border:1.5px solid ${p.border};}`;
+    css+=`.col[data-pal="${i}"] .col-dot{background:${p.accent};}`;
+    css+=`.col[data-pal="${i}"] .card{background:${p.card};border:1px solid ${p.border};}`;
+    css+=`.col[data-pal="${i}"] .card.done .cb-circle{background:${p.accent};border-color:${p.accent};}`;
+  });
+  const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
+})();
+
+/* ══════════════════════════════════════════════
+   BOARD
+══════════════════════════════════════════════ */
+function renderBoard(){
+  const board=document.getElementById('board');
+  const addRow=board.querySelector('.add-col-row');
+  board.querySelectorAll('.col').forEach(el=>el.remove());
+
+  columns.forEach(col=>{
+    const sec=document.createElement('section');
+    sec.className='col';sec.dataset.colId=col.id;sec.dataset.pal=col.pal;
+
+    sec.innerHTML=`
+      <div class="col-header">
+        <div class="col-header-left">
+          <span class="col-dot"></span>
+          <h2 class="col-title">${esc(col.title)}</h2>
+          <span class="col-count">${col.tasks.length}</span>
+        </div>
+        <button class="col-add-btn" data-col-id="${col.id}" title="Görev ekle">+</button>
+      </div>`;
+
+    col.tasks.forEach(t=>sec.appendChild(buildCard(t,col)));
+
+    const ab=document.createElement('button');
+    ab.className='add-card-btn';ab.dataset.colId=col.id;
+    ab.innerHTML='<span style="font-size:1rem;line-height:1">+</span> Yeni Görev Ekle';
+    sec.appendChild(ab);
+
+    board.insertBefore(sec,addRow);
+    sec.addEventListener('dragover',onColDragOver);
+    sec.addEventListener('drop',onColDrop);
+    sec.addEventListener('dragleave',onColDragLeave);
+  });
+
+  const total=columns.reduce((s,c)=>s+c.tasks.length,0);
+  document.getElementById('taskSummary').textContent=
+    total?`Toplam ${total} görev, ${completedItems.length} arşivlendi.`:'Tüm görevler tamamlandı! 🎉';
+
+  document.getElementById('catBadge').textContent=columns.length;
+  updateCompletedBadge();
+}
+
+function buildCard(task,col){
+  const card=document.createElement('div');
+  card.className='card'+(task.done?' done':'');
+  card.dataset.taskId=task.id;card.draggable=true;
+
+  let meta='';
+  if(task.date) meta+=`<span class="tag tag-date">📅 ${esc(task.date)}</span>`;
+  if(task.tag)  meta+=task.urgent
+    ?`<span class="tag tag-urgent">🔥 ${esc(task.tag)}</span>`
+    :`<span class="tag tag-label">🏷️ ${esc(task.tag)}</span>`;
+
+  card.innerHTML=`
+    <div class="cb-wrap"><div class="cb-circle"></div></div>
+    <div class="card-body">
+      <span class="card-title">${esc(task.title)}</span>
+      ${meta?`<div class="card-meta">${meta}</div>`:''}
+    </div>
+    <div class="card-actions">
+      <button class="act-btn edit" title="Düzenle">✏️</button>
+      <button class="act-btn del" title="Sil">🗑️</button>
+    </div>`;
+
+  card.querySelector('.cb-circle').addEventListener('click',e=>{
+    e.stopPropagation();task.done=!task.done;card.classList.toggle('done',task.done);
+  });
+  card.querySelector('.act-btn.edit').addEventListener('click',e=>{e.stopPropagation();openEditTask(task.id);});
+  card.querySelector('.act-btn.del').addEventListener('click',e=>{e.stopPropagation();deleteTask(task.id,col.id);});
+  card.addEventListener('dragstart',e=>onCardDragStart(e,task.id,col.id));
+  card.addEventListener('dragend',onCardDragEnd);
+  return card;
+}
+
+/* ══════════════════════════════════════════════
+   DELETE TASK → archive
+══════════════════════════════════════════════ */
+function deleteTask(tid,cid){
+  const c=findCol(cid);const t=c&&c.tasks.find(x=>x.id===tid);if(!t)return;
+  const el=document.querySelector(`.card[data-task-id="${tid}"]`);
+  const go=()=>{
+    c.tasks=c.tasks.filter(x=>x.id!==tid);
+    completedItems.push({id:tid,title:t.title,fromCol:c.title,
+      deletedAt:new Date().toLocaleString('tr-TR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})});
+    renderBoard();renderCompleted();
+  };
+  if(el){el.style.transition='opacity .18s,transform .18s';el.style.opacity='0';el.style.transform='translateX(18px)';setTimeout(go,180);}
+  else go();
+}
+
+/* ══════════════════════════════════════════════
+   COMPLETED PAGE
+══════════════════════════════════════════════ */
+function renderCompleted(){
+  const list=document.getElementById('completedList');
+  list.innerHTML='';
+  if(!completedItems.length){
+    list.innerHTML=`<div class="empty-state"><span class="icon">🎉</span>Henüz arşivlenen görev yok.<br/>Bir görevi sil ya da ✓ işaretle!</div>`;
+    document.getElementById('completedSummary').textContent='Silinen ve işaretlenen görevler burada.';
+    return;
+  }
+  document.getElementById('completedSummary').textContent=`${completedItems.length} görev arşivlendi.`;
+  completedItems.slice().reverse().forEach(item=>{
+    const div=document.createElement('div');div.className='completed-card';
+    div.innerHTML=`
+      <div class="completed-check">✓</div>
+      <div class="completed-body">
+        <div class="completed-title">${esc(item.title)}</div>
+        <div class="completed-meta">${esc(item.fromCol)} · ${item.deletedAt}</div>
+      </div>
+      <button class="completed-del" title="Kalıcı sil">🗑️</button>`;
+    div.querySelector('.completed-del').addEventListener('click',()=>{
+      completedItems=completedItems.filter(x=>x.id!==item.id);
+      renderCompleted();updateCompletedBadge();
+    });
+    list.appendChild(div);
+  });
+}
+function updateCompletedBadge(){document.getElementById('completedBadge').textContent=completedItems.length;}
+
+/* ══════════════════════════════════════════════
+   CATEGORIES PAGE
+══════════════════════════════════════════════ */
+let catDragId=null;
+let activeColorPicker=null;
+
+function renderCategories(){
+  const list=document.getElementById('catList');
+  list.innerHTML='';
+  document.getElementById('catBadge').textContent=columns.length;
+
+  if(!columns.length){
+    list.innerHTML='<div class="empty-state"><span class="icon">🗂️</span>Hiç kategori yok. Yeni bir tane oluştur!</div>';
+    return;
+  }
+
+  columns.forEach((col,idx)=>{
+    const p=pal(col.pal);
+    const row=document.createElement('div');
+    row.className='cat-row';
+    row.dataset.catId=col.id;
+    row.draggable=true;
+
+    row.innerHTML=`
+      <div class="cat-handle" title="Sürükle">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="cat-dot" style="background:${p.accent}" title="Rengi değiştir"></div>
+      <div class="cat-name-wrap">
+        <div class="cat-name">${esc(col.title)}</div>
+        <div class="cat-sub">${col.tasks.length} görev</div>
+      </div>
+      <div class="cat-order-btns">
+        <button class="cat-order-btn up-btn" title="Yukarı taşı" ${idx===0?'disabled':''}>▲</button>
+        <button class="cat-order-btn down-btn" title="Aşağı taşı" ${idx===columns.length-1?'disabled':''}>▼</button>
+      </div>
+      <div class="cat-row-actions">
+        <button class="cat-act rename-btn" title="Yeniden adlandır">✏️</button>
+        <button class="cat-act danger delete-btn" title="Sil">🗑️</button>
+      </div>`;
+
+    /* order buttons */
+    row.querySelector('.up-btn').addEventListener('click',()=>{
+      if(idx>0){[columns[idx-1],columns[idx]]=[columns[idx],columns[idx-1]];renderCategories();renderBoard();}
+    });
+    row.querySelector('.down-btn').addEventListener('click',()=>{
+      if(idx<columns.length-1){[columns[idx],columns[idx+1]]=[columns[idx+1],columns[idx]];renderCategories();renderBoard();}
+    });
+
+    /* rename: double-click on name OR button */
+    const nameEl=row.querySelector('.cat-name');
+    const startRename=()=>{
+      if(row.querySelector('.cat-name-input'))return; // already editing
+      const inp=document.createElement('input');
+      inp.className='cat-name-input';inp.value=col.title;inp.maxLength=40;
+      nameEl.replaceWith(inp);inp.focus();inp.select();
+      const commit=()=>{
+        const v=inp.value.trim()||col.title;
+        col.title=v;
+        const newName=document.createElement('div');
+        newName.className='cat-name';newName.textContent=v;
+        newName.addEventListener('dblclick',startRename);
+        inp.replaceWith(newName);
+        row.querySelector('.cat-sub').textContent=`${col.tasks.length} görev`;
+        renderBoard();
+      };
+      inp.addEventListener('blur',commit);
+      inp.addEventListener('keydown',e=>{
+        if(e.key==='Enter')commit();
+        if(e.key==='Escape'){inp.value=col.title;commit();}
+      });
+    };
+    nameEl.addEventListener('dblclick',startRename);
+    row.querySelector('.rename-btn').addEventListener('click',startRename);
+
+    /* delete */
+    row.querySelector('.delete-btn').addEventListener('click',()=>openDeleteCat(col.id));
+
+    /* color dot */
+    row.querySelector('.cat-dot').addEventListener('click',e=>{
+      e.stopPropagation();
+      openColorPicker(col.id,row,e.currentTarget);
+    });
+
+    /* drag-sort */
+    row.addEventListener('dragstart',e=>{
+      catDragId=col.id;
+      row.classList.add('is-dragging');
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',col.id);
+    });
+    row.addEventListener('dragend',()=>{
+      catDragId=null;
+      document.querySelectorAll('.cat-row').forEach(r=>r.classList.remove('is-dragging','drag-target'));
+    });
+    row.addEventListener('dragover',e=>{
+      e.preventDefault();
+      if(catDragId!==null&&catDragId!==col.id) row.classList.add('drag-target');
+    });
+    row.addEventListener('dragleave',()=>row.classList.remove('drag-target'));
+    row.addEventListener('drop',e=>{
+      e.preventDefault();
+      row.classList.remove('drag-target');
+      if(catDragId===null||catDragId===col.id)return;
+      const from=columns.findIndex(c=>c.id===catDragId);
+      const to=columns.findIndex(c=>c.id===col.id);
+      if(from<0||to<0)return;
+      const[moved]=columns.splice(from,1);
+      columns.splice(to,0,moved);
+      renderCategories();renderBoard();
+    });
+
+    list.appendChild(row);
+  });
+}
+
+/* ── Color picker ── */
+function openColorPicker(colId,row,dotEl){
+  // close any existing
+  if(activeColorPicker){activeColorPicker.remove();activeColorPicker=null;}
+
+  const popup=document.createElement('div');
+  popup.className='color-picker-popup';
+  activeColorPicker=popup;
+
+  const col=findCol(colId);
+
+  PALETTES.forEach((p,i)=>{
+    const sw=document.createElement('div');
+    sw.className='cp-swatch'+(col.pal===i?' active':'');
+    sw.style.background=p.accent;
+    sw.title=`Renk ${i+1}`;
+    sw.addEventListener('click',e=>{
+      e.stopPropagation();
+      col.pal=i;
+      popup.remove();activeColorPicker=null;
+      renderCategories();renderBoard();
+    });
+    popup.appendChild(sw);
+  });
+
+  row.style.position='relative';
+  row.appendChild(popup);
+
+  const dismiss=e=>{
+    if(!popup.contains(e.target)&&e.target!==dotEl){
+      popup.remove();activeColorPicker=null;
+      document.removeEventListener('click',dismiss);
+    }
+  };
+  setTimeout(()=>document.addEventListener('click',dismiss),0);
+}
+
+/* ── Delete category confirm ── */
+function openDeleteCat(colId){
+  const col=findCol(colId);if(!col)return;
+  pendingDeleteCatId=colId;
+  document.getElementById('deleteCatBody').textContent=`"${col.title}" kategorisini silmek istediğinizden emin misiniz?`;
+  const warn=document.getElementById('deleteCatWarn');
+  if(col.tasks.length){
+    warn.className='confirm-warn red';
+    warn.innerHTML=`⚠️ Bu kategorideki <strong>${col.tasks.length} görev</strong> Tamamlananlar arşivine taşınacak.`;
+  } else {
+    warn.className='confirm-warn green';
+    warn.textContent='✓ Bu kategoride hiç görev yok, güvenle silinebilir.';
+  }
+  document.getElementById('deleteCatModal').classList.add('active');
+}
+
+document.getElementById('deleteCatCancel').addEventListener('click',()=>{
+  document.getElementById('deleteCatModal').classList.remove('active');
+  pendingDeleteCatId=null;
+});
+document.getElementById('deleteCatConfirm').addEventListener('click',()=>{
+  if(pendingDeleteCatId===null)return;
+  const col=findCol(pendingDeleteCatId);
+  if(col){
+    col.tasks.forEach(t=>{
+      completedItems.push({id:t.id,title:t.title,fromCol:col.title,
+        deletedAt:new Date().toLocaleString('tr-TR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})});
+    });
+    columns.splice(columns.indexOf(col),1);
+  }
+  document.getElementById('deleteCatModal').classList.remove('active');
+  pendingDeleteCatId=null;
+  renderCategories();renderBoard();renderCompleted();
+});
+
+/* ══════════════════════════════════════════════
+   TASK DRAG & DROP (card between columns)
+══════════════════════════════════════════════ */
+let dragTaskId=null,dragColId=null,ghostEl=null,ghostOffX=0,ghostOffY=0,placeholder=null;
+
+function onCardDragStart(e,tid,cid){
+  dragTaskId=tid;dragColId=cid;
+  const card=e.currentTarget;
+  ghostOffX=e.clientX-card.getBoundingClientRect().left;
+  ghostOffY=e.clientY-card.getBoundingClientRect().top;
+  ghostEl=card.cloneNode(true);
+  ghostEl.className=card.className+' ghost';
+  ghostEl.style.width=card.offsetWidth+'px';
+  ghostEl.style.left=(e.clientX-ghostOffX)+'px';
+  ghostEl.style.top=(e.clientY-ghostOffY)+'px';
+  document.body.appendChild(ghostEl);
+  card.classList.add('dragging');
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setDragImage(new Image(),0,0);
+}
+function onCardDragEnd(){
+  if(ghostEl){ghostEl.remove();ghostEl=null;}
+  document.querySelectorAll('.card.dragging').forEach(el=>el.classList.remove('dragging'));
+  document.querySelectorAll('.col.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  if(placeholder){placeholder.remove();placeholder=null;}
+  dragTaskId=null;dragColId=null;
+}
+function onColDragOver(e){
+  e.preventDefault();
+  const sec=e.currentTarget;sec.classList.add('drag-over');
+  if(ghostEl){ghostEl.style.left=(e.clientX-ghostOffX)+'px';ghostEl.style.top=(e.clientY-ghostOffY)+'px';}
+  if(!placeholder){placeholder=document.createElement('div');placeholder.className='drop-placeholder';}
+  const cards=[...sec.querySelectorAll('.card:not(.dragging)')];
+  let ins=false;
+  for(const c of cards){
+    const r=c.getBoundingClientRect();
+    if(e.clientY<r.top+r.height/2){sec.insertBefore(placeholder,c);ins=true;break;}
+  }
+  if(!ins){const ab=sec.querySelector('.add-card-btn');sec.insertBefore(placeholder,ab);}
+}
+function onColDrop(e){
+  e.preventDefault();
+  if(dragTaskId===null)return;
+  const tColId=parseInt(e.currentTarget.dataset.colId);
+  const src=findCol(dragColId),dst=findCol(tColId);
+  if(!src||!dst)return;
+  const idx=src.tasks.findIndex(t=>t.id===dragTaskId);if(idx<0)return;
+  const[task]=src.tasks.splice(idx,1);
+  let ins=dst.tasks.length;
+  if(placeholder){
+    let cnt=0;
+    const phIdx=[...e.currentTarget.children].indexOf(placeholder);
+    for(let i=0;i<e.currentTarget.children.length;i++){
+      if(i>=phIdx){ins=cnt;break;}
+      if(e.currentTarget.children[i].classList.contains('card')&&!e.currentTarget.children[i].classList.contains('dragging'))cnt++;
+    }
+  }
+  dst.tasks.splice(ins,0,task);
+  renderBoard();
+}
+function onColDragLeave(e){
+  if(!e.currentTarget.contains(e.relatedTarget)){
+    e.currentTarget.classList.remove('drag-over');
+    if(placeholder&&placeholder.parentNode===e.currentTarget){placeholder.remove();placeholder=null;}
+  }
+}
+document.addEventListener('dragover',e=>{
+  if(ghostEl){ghostEl.style.left=(e.clientX-ghostOffX)+'px';ghostEl.style.top=(e.clientY-ghostOffY)+'px';}
+});
+
+/* ══════════════════════════════════════════════
+   TASK MODAL
+══════════════════════════════════════════════ */
+function openAddTask(colId){
+  pendingColId=colId;editingTaskId=null;
+  document.getElementById('taskModalTitle').textContent='Yeni Görev';
+  document.getElementById('taskNameInput').value='';
+  document.getElementById('taskTagInput').value='';
+  document.getElementById('taskDateInput').value='';
+  document.getElementById('taskColSelect').innerHTML=columns.map(c=>`<option value="${c.id}"${c.id===colId?' selected':''}>${esc(c.title)}</option>`).join('');
+  document.getElementById('taskModal').classList.add('active');
+  setTimeout(()=>document.getElementById('taskNameInput').focus(),80);
+}
+function openEditTask(tid){
+  const f=findTask(tid);if(!f)return;
+  editingTaskId=tid;
+  document.getElementById('taskModalTitle').textContent='Görevi Düzenle';
+  document.getElementById('taskNameInput').value=f.task.title;
+  document.getElementById('taskTagInput').value=f.task.tag||'';
+  document.getElementById('taskDateInput').value='';
+  document.getElementById('taskColSelect').innerHTML=columns.map(c=>`<option value="${c.id}"${c.id===f.col.id?' selected':''}>${esc(c.title)}</option>`).join('');
+  document.getElementById('taskModal').classList.add('active');
+  setTimeout(()=>document.getElementById('taskNameInput').focus(),80);
+}
+
+document.getElementById('taskModalCancel').addEventListener('click',()=>document.getElementById('taskModal').classList.remove('active'));
+document.getElementById('taskModal').addEventListener('click',e=>{if(e.target===document.getElementById('taskModal'))document.getElementById('taskModal').classList.remove('active');});
+document.getElementById('taskModalSave').addEventListener('click',()=>{
+  const name=document.getElementById('taskNameInput').value.trim();
+  if(!name){document.getElementById('taskNameInput').focus();return;}
+  const selId=parseInt(document.getElementById('taskColSelect').value);
+  const tag=document.getElementById('taskTagInput').value.trim();
+  const dateStr=document.getElementById('taskDateInput').value?formatDate(document.getElementById('taskDateInput').value):'';
+  if(editingTaskId!==null){
+    const f=findTask(editingTaskId);
+    if(f){
+      f.task.title=name;f.task.tag=tag;f.task.date=dateStr;f.task.urgent=false;
+      if(f.col.id!==selId){const nc=findCol(selId);if(nc){f.col.tasks=f.col.tasks.filter(t=>t.id!==f.task.id);nc.tasks.push(f.task);}}
+    }
+  } else {
+    const col=findCol(selId)||columns[0];
+    col.tasks.push({id:++taskIdSeq,title:name,tag,date:dateStr,urgent:false,done:false});
+  }
+  document.getElementById('taskModal').classList.remove('active');
+  renderBoard();
+});
+document.getElementById('taskNameInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('taskModalSave').click();});
+
+/* ══════════════════════════════════════════════
+   CATEGORY MODAL (add new)
+══════════════════════════════════════════════ */
+function openAddCat(){
+  document.getElementById('colNameInput').value='';
+  document.getElementById('colModal').classList.add('active');
+  setTimeout(()=>document.getElementById('colNameInput').focus(),80);
+}
+document.getElementById('addColBtn').addEventListener('click',openAddCat);
+document.getElementById('catAddBtn').addEventListener('click',openAddCat);
+document.getElementById('colModalCancel').addEventListener('click',()=>document.getElementById('colModal').classList.remove('active'));
+document.getElementById('colModal').addEventListener('click',e=>{if(e.target===document.getElementById('colModal'))document.getElementById('colModal').classList.remove('active');});
+document.getElementById('colModalSave').addEventListener('click',()=>{
+  const name=document.getElementById('colNameInput').value.trim();
+  if(!name){document.getElementById('colNameInput').focus();return;}
+  columns.push({id:++colIdSeq,pal:columns.length%PALETTES.length,title:name,tasks:[]});
+  document.getElementById('colModal').classList.remove('active');
+  renderBoard();renderCategories();
+});
+document.getElementById('colNameInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('colModalSave').click();});
+
+/* ══════════════════════════════════════════════
+   BOARD DELEGATION
+══════════════════════════════════════════════ */
+document.getElementById('board').addEventListener('click',e=>{
+  const a=e.target.closest('.col-add-btn[data-col-id]');
+  const b=e.target.closest('.add-card-btn[data-col-id]');
+  if(a)openAddTask(parseInt(a.dataset.colId));
+  if(b)openAddTask(parseInt(b.dataset.colId));
+});
+
+/* ══════════════════════════════════════════════
+   DRAWER / NAVIGATION
+══════════════════════════════════════════════ */
+const hamburgerBtn=document.getElementById('hamburgerBtn');
+const navDrawer=document.getElementById('navDrawer');
+const overlay=document.getElementById('overlay');
+
+const openDrawer=()=>{navDrawer.classList.add('active');overlay.classList.add('active');hamburgerBtn.classList.add('drawer-open');};
+const closeDrawer=()=>{navDrawer.classList.remove('active');overlay.classList.remove('active');hamburgerBtn.classList.remove('drawer-open');};
+
+hamburgerBtn.addEventListener('click',()=>navDrawer.classList.contains('active')?closeDrawer():openDrawer());
+document.getElementById('drawerClose').addEventListener('click',closeDrawer);
+overlay.addEventListener('click',closeDrawer);
+
+function navigateTo(pageId){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+pageId).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===pageId));
+  if(pageId==='completed')renderCompleted();
+  if(pageId==='categories')renderCategories();
+  closeDrawer();
+}
+document.querySelectorAll('.nav-item').forEach(b=>b.addEventListener('click',()=>navigateTo(b.dataset.page)));
+document.getElementById('logoBtn').addEventListener('click',()=>navigateTo('tasks'));
+document.getElementById('fabBtn').addEventListener('click',()=>openAddTask(columns[0]?.id||1));
+
+/* ── INIT ── */
+renderBoard();
+</script>
+</body>
+</html>
